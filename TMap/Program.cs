@@ -2,6 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using CommandLine;
+using TMap.Data;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 // ReSharper Complains about the setters not being used in Options, even though they are (from the Attribute)
@@ -21,9 +22,8 @@ namespace TMap
 
         private static void ApplyModifications(World w, Options o)
         {
-            
         }
-        
+
         private static void WriteWorld(BinaryWriter s, World w)
         {
             WorldWriter.WriteWorld(s, w);
@@ -55,7 +55,7 @@ namespace TMap
             //I tried to do this with streams and consistently ran into buffering problems which i'm not smart
             //enough to fix. TODO
             byte[] inBytes = o.Filepath == null ? await ReadStdinToEnd() : await File.ReadAllBytesAsync(o.Filepath);
-            
+
             await using BinaryWriter outStream = o.Output == null
                 ? new BinaryWriter(Console.OpenStandardOutput())
                 : new BinaryWriter(File.OpenWrite(o.Output));

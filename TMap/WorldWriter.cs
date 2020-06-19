@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
-using static TMap.World.BossIndexes;
-using static TMap.World.NpcIndexes;
-using static TMap.World.InvasionIndexes;
+using TMap.Data;
+using static TMap.Data.World.BossIndexes;
+using static TMap.Data.World.NpcIndexes;
+using static TMap.Data.World.InvasionIndexes;
 
 namespace TMap
 {
@@ -42,6 +44,8 @@ namespace TMap
 
             if (b2 != 1)
                 s.Write(b);
+
+            s.Flush();
 
             return (int) s.BaseStream.Position;
         }
@@ -306,7 +310,7 @@ namespace TMap
 
                     if (current.Wall != 0)
                         flags1 |= 0x04;
-                    if (current.Id != 0)
+                    if (current.Id != -1)
                         flags1 |= 0x02;
                     if (flags2 != 0)
                         flags1 |= 0x01;
@@ -318,7 +322,7 @@ namespace TMap
                         s.Write(flags3);
                     if (current.Id > 255)
                         s.Write((ushort) current.Id);
-                    else if (current.Id > 0)
+                    else if (current.Id > -1)
                         s.Write((byte) current.Id);
                     if (current.FrameX >= 0)
                     {
@@ -386,6 +390,164 @@ namespace TMap
             
             return (int) s.BaseStream.Position;
         }
+
+        private static int WriteNpcs(BinaryWriter s, World w)
+        {
+            foreach (Npc current in w.CurrentNpcs)
+            {
+                if (current.TownNpc)
+                {
+                    s.Write(current.Active);
+                    s.Write(current.Id);
+                    s.Write(current.Name);
+                    s.Write(current.X);
+                    s.Write(current.Y);
+                    s.Write(current.Homeless);
+                    s.Write(current.HomeTileX);
+                    s.Write(current.HomeTileY);
+                    s.Write((byte) 0x01);
+                    s.Write(current.TownNpcVariationIndex);
+                }
+            }
+
+            s.Write(false);
+            
+            foreach (Npc current in w.CurrentNpcs)
+            {
+                if (!current.TownNpc)
+                {
+                    s.Write(current.Active);
+                    s.Write(current.Id);
+                    s.Write(current.X);
+                    s.Write(current.Y);
+                }
+            }
+
+            s.Write(false);
+            
+            return (int) s.BaseStream.Position;
+        }
+
+        private static int WriteTileEntities(BinaryWriter s, World w)
+        {
+            s.Write(w.TileEntities.Length);
+
+            foreach (TileEntity current in w.TileEntities)
+            {
+                s.Write(current.Type);
+                s.Write(current.Id);
+                s.Write(current.X);
+                s.Write(current.Y);
+                
+                switch (current.Type) //Ignoring Pylons (7) on purpose here, since they dont store anything extra
+                {
+                    case 0: // Training Dummy
+                        s.Write(current.Npc);
+                        break;
+                    case 1: // Item Frame
+                    case 4: // Weapon Rack
+                    case 6: // Food Platter
+                        s.Write((short)current.Items[0].Id);
+                        s.Write(current.Items[0].Prefix);
+                        s.Write(current.Items[0].Stack);
+                        break;
+                    case 2: // logic switch
+                        s.Write(current.LogicType);
+                        s.Write(current.Enabled);
+                        break;
+                    case 3: // Display doll
+                        byte itemSlots = 0;
+                        for (int i = 0; i < 8; i++)
+                            if (current.Items[i] != null)
+                                itemSlots |= (byte) (1 << i);
+                        
+                        byte dyeSlots = 0;
+                        for (int i = 0; i < 8; i++)
+                            if (current.Items[8 + i] != null)
+                                itemSlots |= (byte) (1 << i);
+
+                        s.Write(itemSlots);
+                        s.Write(dyeSlots);
+
+                        for (int i = 0; i < 16; i++)
+                        {
+                            if (current.Items[i] == null)
+                                continue;
+                            s.Write((short)current.Items[i].Id);
+                            s.Write(current.Items[i].Prefix);
+                            s.Write(current.Items[i].Stack);
+                        }
+
+                        break;
+                    case 5: // hat rack
+                        byte slots = 0;
+                        for (int i = 0; i < 4; i++)
+                            if (current.Items[i] != null)
+                                slots |= (byte) (1 << i);
+
+                        s.Write(slots);
+
+                        for (int i = 0; i < 4; i++)
+                        {
+                            if (current.Items[i] == null)
+                                continue;
+                            s.Write((short)current.Items[i].Id);
+                            s.Write(current.Items[i].Prefix);
+                            s.Write(current.Items[i].Stack);
+                        }
+                        break;
+                }
+            }
+            
+            return (int) s.BaseStream.Position;
+        }
+
+        private static int WritePressurePlates(BinaryWriter s, World w)
+        {
+            s.Write(w.PressurePlatesX.Length);
+
+            for (int i = 0; i < w.PressurePlatesX.Length; i++)
+            {
+                s.Write(w.PressurePlatesX[i]);
+                s.Write(w.PressurePlatesY[i]);
+            }
+
+            return (int) s.BaseStream.Position;
+        }
+
+        private static int WriteTownManager(BinaryWriter s, World w)
+        {
+            s.Write(w.RoomLocations.Length);
+
+            foreach ((int npcId, int xPos, int yPos) roomLocation in w.RoomLocations)
+            {
+                s.Write(roomLocation.npcId);
+                s.Write(roomLocation.xPos);
+                s.Write(roomLocation.yPos);
+            }
+
+            return (int) s.BaseStream.Position;
+        }
+
+        private static int WriteBestiary(BinaryWriter s, World w)
+        {
+            s.Write(w.BestiaryKillCounts.Count);
+            foreach (KeyValuePair<string, int> kvp in w.BestiaryKillCounts)
+            {
+                s.Write(kvp.Key);
+                s.Write(kvp.Value);
+            }
+
+            s.Write(w.WasNearPlayer.Count);
+            foreach (string s2 in w.WasNearPlayer)
+                s.Write(s2);
+
+            s.Write(w.ChattedWithPlayer.Count);
+            foreach (string s2 in w.ChattedWithPlayer)
+                s.Write(s2);
+            
+            return (int) s.BaseStream.Position;
+        }
         
         public static void WriteWorld(BinaryWriter s, World w)
         {
@@ -394,6 +556,29 @@ namespace TMap
             int worldTilesPos = WriteWorldTiles(s, w);
             int chestsPos = WriteChests(s, w);
             int signsPos = WriteSigns(s, w);
+            int npcsPos = WriteNpcs(s, w);
+            int tileEntitiesPos = WriteTileEntities(s, w);
+            int pressurePlatePos = WritePressurePlates(s, w);
+            int townManagerPos = WriteTownManager(s, w);
+            int bestiaryPos = WriteBestiary(s, w);
+            s.Write(false);
+
+            s.Write(true);
+            s.Write(w.Name);
+            s.Write(w.WorldId);
+
+            s.BaseStream.Position = 26L;
+            s.Write(fileFormatHeaderPos);
+            s.Write(worldHeaderPos);
+            s.Write(worldTilesPos);
+            s.Write(chestsPos);
+            s.Write(signsPos);
+            s.Write(npcsPos);
+            s.Write(tileEntitiesPos);
+            s.Write(pressurePlatePos);
+            s.Write(townManagerPos);
+            s.Write(bestiaryPos);
+            s.Write(bestiaryPos + 1);
         }
     }
 }

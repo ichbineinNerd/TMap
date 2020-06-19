@@ -1,4 +1,4 @@
-﻿namespace TMap
+﻿namespace TMap.Data
 {
     public class Sign
     {

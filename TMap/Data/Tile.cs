@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-
-namespace TMap
+﻿namespace TMap.Data
 {
     public class Tile
     {

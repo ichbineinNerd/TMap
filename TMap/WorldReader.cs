@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
-using static TMap.World.BossIndexes;
-using static TMap.World.InvasionIndexes;
-using static TMap.World.NpcIndexes;
+using TMap.Data;
+using static TMap.Data.World.BossIndexes;
+using static TMap.Data.World.InvasionIndexes;
+using static TMap.Data.World.NpcIndexes;
 
 namespace TMap
 {
@@ -267,8 +269,10 @@ namespace TMap
                             t.Id = b.ReadByte() << 8 | t.Id;
                         }
                     }
+                    else
+                        t.Id = -1;
 
-                    if (w.TileFrameImportant[t.Id])
+                    if (t.Id != -1 && w.TileFrameImportant[t.Id])
                     {
                         t.FrameX = b.ReadInt16();
                         t.FrameY = b.ReadInt16();
@@ -333,7 +337,7 @@ namespace TMap
 
                     t.Actuator = (flags3 & 0x02) != 0;
                     t.Active = (flags3 & 0x04) == 0;
-                    
+
                     if ((flags1 & 0xC0) != 0)
                     {
                         int repeat = b.ReadByte();
@@ -385,11 +389,188 @@ namespace TMap
             w.Signs = new Sign[b.ReadInt16()];
             for (int i = 0; i < w.Signs.Length; i++)
             {
-                w.Signs[i] = new Sign();
-                w.Signs[i].Text = b.ReadString();
-                w.Signs[i].X = b.ReadInt32();
-                w.Signs[i].Y = b.ReadInt32();
+                w.Signs[i] = new Sign {Text = b.ReadString(), X = b.ReadInt32(), Y = b.ReadInt32()};
             }
+        }
+
+        private static void ReadNpcs(World w, BinaryReader b)
+        {
+            List<Npc> npcsTmp = new List<Npc>();
+
+            while (b.ReadBoolean())
+            {
+                Npc current = new Npc();
+                npcsTmp.Add(current);
+
+                current.Active = true;
+                current.Id = b.ReadInt32();
+                current.Name = b.ReadString();
+                current.X = b.ReadSingle();
+                current.Y = b.ReadSingle();
+                current.Homeless = b.ReadBoolean();
+                current.HomeTileX = b.ReadInt32();
+                current.HomeTileY = b.ReadInt32();
+                //always 0x01
+                current.TownNpc = b.ReadByte() != 0;
+                current.TownNpcVariationIndex = b.ReadInt32();
+            }
+
+            while (b.ReadBoolean())
+            {
+                //this is exclusively for celestial pillars as of now
+                Npc current = new Npc();
+                npcsTmp.Add(current);
+                current.TownNpc = false;
+                current.Active = true;
+                current.Id = b.ReadInt32();
+                current.X = b.ReadSingle();
+                current.Y = b.ReadSingle();
+            }
+
+            w.CurrentNpcs = npcsTmp.ToArray();
+        }
+
+        private static void ReadTileEntities(World w, BinaryReader b)
+        {
+            w.TileEntities = new TileEntity[b.ReadInt32()];
+            for (int i = 0; i < w.TileEntities.Length; i++)
+            {
+                TileEntity current = new TileEntity();
+                w.TileEntities[i] = current;
+
+                current.Type = b.ReadByte();
+                current.Id = b.ReadInt32();
+                current.X = b.ReadInt16();
+                current.Y = b.ReadInt16();
+                Item[] items;
+                switch (current.Type) //Ignoring Pylons (7) on purpose here, since they dont store anything extra
+                {
+                    case 0: // Training Dummy
+                        current.Npc = b.ReadInt16();
+                        break;
+                    case 1: // Item Frame
+                    case 4: // Weapon Rack
+                    case 6: // Food Platter
+                        current.Items = new Item[1];
+                        current.Items[0] = new Item()
+                        {
+                            Id = b.ReadInt16(),
+                            Prefix = b.ReadByte(),
+                            Stack = b.ReadInt16()
+                        };
+                        break;
+                    case 2: // logic switch
+                        current.LogicType = b.ReadByte();
+                        current.Enabled = b.ReadBoolean();
+                        break;
+                    case 3: // Display doll
+                        byte itemSlots = b.ReadByte();
+                        byte dyeSlots = b.ReadByte();
+                        items = new Item[16];
+                        for (int j = 0; j < 8; j++)
+                        {
+                            if ((itemSlots & 1 << j) != 0)
+                                items[j] = new Item
+                                {
+                                    Id = b.ReadInt16(),
+                                    Prefix = b.ReadByte(),
+                                    Stack = b.ReadInt16()
+                                };
+                            else
+                                items[j] = null;
+                        }
+                        
+                        for (int j = 0; j < 8; j++)
+                        {
+                            if ((dyeSlots & 1 << j) != 0)
+                                items[8 + j] = new Item
+                                {
+                                    Id = b.ReadInt16(),
+                                    Prefix = b.ReadByte(),
+                                    Stack = b.ReadInt16()
+                                };
+                            else
+                                items[8 + j] = null;
+                        }
+
+                        current.Items = items;
+
+                        break;
+                    case 5: // Hat rack
+                        byte slots = b.ReadByte();
+                        items = new Item[4];
+                        for (int j = 0; j < 2; j++)
+                        {
+                            if ((slots & 1 << j) != 0)
+                                items[j] = new Item
+                                {
+                                    Id = b.ReadInt16(),
+                                    Prefix = b.ReadByte(),
+                                    Stack = b.ReadInt16()
+                                };
+                            else
+                                items[j] = null;
+                        }
+                        
+                        for (int j = 2; j < 4; j++)
+                        {
+                            if ((slots & 1 << j) != 0)
+                                items[j] = new Item
+                                {
+                                    Id = b.ReadInt16(),
+                                    Prefix = b.ReadByte(),
+                                    Stack = b.ReadInt16()
+                                };
+                            else
+                                items[j] = null;
+                        }
+
+                        current.Items = items;
+                        break;
+                }
+            }
+        }
+
+        private static void ReadPressurePlates(World w, BinaryReader b)
+        {
+            w.PressurePlatesX = new int[b.ReadInt32()];
+            w.PressurePlatesY = new int[w.PressurePlatesX.Length];
+
+            for (int i = 0; i < w.PressurePlatesX.Length; i++)
+            {
+                w.PressurePlatesX[i] = b.ReadInt32();
+                w.PressurePlatesY[i] = b.ReadInt32();
+            }
+        }
+
+        private static void ReadTownManager(World w, BinaryReader b)
+        {
+            w.RoomLocations = new (int, int, int)[b.ReadInt32()];
+
+            for (int i = 0; i < w.RoomLocations.Length; i++)
+            {
+                w.RoomLocations[i].NpcId = b.ReadInt32();
+                w.RoomLocations[i].XPos = b.ReadInt32();
+                w.RoomLocations[i].YPos = b.ReadInt32();
+            }
+        }
+
+        private static void ReadBestiary(World w, BinaryReader b)
+        {
+            int maxLength = b.ReadInt32();
+            w.BestiaryKillCounts = new Dictionary<string, int>(maxLength);
+            for (int i = 0; i < maxLength; i++)
+                w.BestiaryKillCounts.Add(b.ReadString(), b.ReadInt32());
+
+            maxLength = b.ReadInt32();
+            w.WasNearPlayer = new HashSet<string>(maxLength);
+            for (int i = 0; i < maxLength; i++)
+                w.WasNearPlayer.Add(b.ReadString());
+            
+            maxLength = b.ReadInt32();
+            w.ChattedWithPlayer = new HashSet<string>(maxLength);
+            for (int i = 0; i < maxLength; i++)
+                w.ChattedWithPlayer.Add(b.ReadString());
         }
         
         public static World ReadWorld(BinaryReader b)
@@ -400,7 +581,14 @@ namespace TMap
             ReadWorldTiles(w, b);
             ReadChests(w, b);
             ReadSigns(w, b);
-
+            ReadNpcs(w, b);
+            ReadTileEntities(w, b);
+            ReadPressurePlates(w, b);
+            ReadTownManager(w, b);
+            ReadBestiary(w, b);
+            //TODO creative powers
+            b.ReadBoolean();
+            
             return w;
         }
     }

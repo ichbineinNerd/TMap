@@ -1,9 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 
-namespace TMap
+namespace TMap.Data
 {
     public class World
-    {
+    { 
         //massive thanks to http://ludwig.schafer.free.fr as well as the ILSpy team
 
         #region FileFormatHeader
@@ -153,7 +154,7 @@ namespace TMap
         public bool VortexPillarUp;
         public bool NebulaPillarUp;
         public bool StardustPillarUp;
-        
+
         public bool LunarEventsOngoing;
 
         public bool ManualParty;
@@ -178,7 +179,7 @@ namespace TMap
         public bool LanternNightNextNightGenuine;
 
         public int[] TreeTopVariations;
-        
+
         public bool ForceHalloween;
         public bool ForceChristmas;
 
@@ -193,16 +194,49 @@ namespace TMap
         public Tile[,] Tiles;
 
         #endregion
-        
+
         #region Chests
 
         public Chest[] Chests;
 
         #endregion
-        
+
         #region Signs
 
         public Sign[] Signs;
+
+        #endregion
+
+        #region NPCs
+
+        public Npc[] CurrentNpcs;
+
+        #endregion
+
+        #region TileEntities
+
+        public TileEntity[] TileEntities;
+
+        #endregion
+
+        #region PressurePlates
+
+        public int[] PressurePlatesX;
+        public int[] PressurePlatesY;
+
+        #endregion
+
+        #region TownManager
+
+        public (int NpcId, int XPos, int YPos)[] RoomLocations;
+
+        #endregion
+
+        #region Bestiary
+
+        public Dictionary<string, int> BestiaryKillCounts;
+        public HashSet<string> WasNearPlayer;
+        public HashSet<string> ChattedWithPlayer;
 
         #endregion
     }
