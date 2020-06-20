@@ -9,7 +9,7 @@ using TMap.Data;
 
 namespace TMap
 {
-    internal static class Program
+    static class Program
     {
         private class Options
         {

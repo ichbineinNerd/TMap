@@ -548,6 +548,39 @@ namespace TMap
             
             return (int) s.BaseStream.Position;
         }
+
+        private static int WriteCreativePowers(BinaryWriter s, World w)
+        {
+            foreach (CreativePower power in w.CreativePowers)
+            {
+                s.Write(true);
+                s.Write(power.Id);
+                switch (power.Id)
+                {
+                    case 0: //FreezeTime
+                    case 9: //FreezeRain
+                    case 10: //FreezeWind
+                    case 12: //StopBiomeSpread
+                        s.Write(power.Enabled);
+                        break;
+                    case 8: //TimeRate
+                    case 11: //Difficulty
+                        s.Write(power.SliderValue);
+                        break;
+                }
+
+                s.Write(false);
+            }
+
+            return (int) s.BaseStream.Position;
+        }
+        
+        private static void WriteFooter(BinaryWriter s, World w)
+        {
+            s.Write(true);
+            s.Write(w.Name);
+            s.Write(w.WorldId);
+        }
         
         public static void WriteWorld(BinaryWriter s, World w)
         {
@@ -561,12 +594,10 @@ namespace TMap
             int pressurePlatePos = WritePressurePlates(s, w);
             int townManagerPos = WriteTownManager(s, w);
             int bestiaryPos = WriteBestiary(s, w);
-            s.Write(false);
+            int creativePowersPos = WriteCreativePowers(s, w);
+            WriteFooter(s, w);
 
-            s.Write(true);
-            s.Write(w.Name);
-            s.Write(w.WorldId);
-
+            
             s.BaseStream.Position = 26L;
             s.Write(fileFormatHeaderPos);
             s.Write(worldHeaderPos);
@@ -578,7 +609,7 @@ namespace TMap
             s.Write(pressurePlatePos);
             s.Write(townManagerPos);
             s.Write(bestiaryPos);
-            s.Write(bestiaryPos + 1);
+            s.Write(creativePowersPos);
         }
     }
 }

@@ -239,5 +239,11 @@ namespace TMap.Data
         public HashSet<string> ChattedWithPlayer;
 
         #endregion
+
+        #region CreativePowers
+
+        public List<CreativePower> CreativePowers;
+
+        #endregion
     }
 }

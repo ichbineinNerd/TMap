@@ -572,6 +572,32 @@ namespace TMap
             for (int i = 0; i < maxLength; i++)
                 w.ChattedWithPlayer.Add(b.ReadString());
         }
+
+        private static void ReadCreativePowers(World w, BinaryReader b)
+        {
+            List<CreativePower> powers = new List<CreativePower>();
+            while (b.ReadBoolean())
+            {
+                CreativePower power = new CreativePower();
+                switch (power.Id = b.ReadUInt16())
+                {
+                    case 0: //FreezeTime
+                    case 9: //FreezeRain
+                    case 10: //FreezeWind
+                    case 12: //StopBiomeSpread
+                        power.Enabled = b.ReadBoolean();
+                        break;
+                    case 8: //TimeRate
+                    case 11: //Difficulty
+                        power.SliderValue = b.ReadSingle();
+                        break;
+                }
+
+                powers.Add(power);
+            }
+
+            w.CreativePowers = powers;
+        }
         
         public static World ReadWorld(BinaryReader b)
         {
@@ -586,8 +612,7 @@ namespace TMap
             ReadPressurePlates(w, b);
             ReadTownManager(w, b);
             ReadBestiary(w, b);
-            //TODO creative powers
-            b.ReadBoolean();
+            ReadCreativePowers(w, b);
             
             return w;
         }
