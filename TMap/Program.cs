@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 using CommandLine;
 using TMap.Data;
@@ -11,6 +12,18 @@ namespace TMap
 {
     static class Program
     {
+        [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
+        private class ModifyWorldFieldAttribute : Attribute
+        {
+            public FieldInfo fi;
+            public object val;
+            public ModifyWorldFieldAttribute(string fi, object val)
+            {
+                this.fi = typeof(World).GetField(fi);
+                this.val = val;
+            }
+        }
+    
         private class Options
         {
             [Option('f', "file", HelpText = "Path of the world file to load", Required = true)]
@@ -18,10 +31,37 @@ namespace TMap
 
             [Option('o', "out", HelpText = "Where to write the modified world file", Required = false)]
             public string Output { get; set; }
+
+            [ModifyWorldField("GameMode", 1)]
+            [Option("expert", HelpText = "If given, changes the World to Expert mode", Required = false)]
+            public bool Expert { get; set; }
+
+            [ModifyWorldField("GameMode", 0)]
+            [Option("normal", HelpText = "If given, changes the World to Normal mode", Required = false)]
+            public bool Normal { get; set; }
+
+            [ModifyWorldField("GameMode", 2)]
+            [Option("master", HelpText = "If given, changes the World to Master mode", Required = false)]
+            public bool Master { get; set; }
+
+            [ModifyWorldField("GameMode", 3)]
+            [Option("journey", HelpText = "If given, changes the World to Journey mode", Required = false)]
+            public bool Creative { get; set; }
         }
 
-        private static void ApplyModifications(World w, Options o)
+        private static void ApplyModifications(World w, Options o, int verbosity)
         {
+            foreach (PropertyInfo pi in o.GetType().GetProperties())
+            {
+                if (pi.PropertyType != typeof(bool) || !(bool) (pi.GetValue(o) ?? false))
+                    continue;
+                Attribute[] attributes = Attribute.GetCustomAttributes(pi, typeof(ModifyWorldFieldAttribute));
+                foreach (Attribute a in attributes)
+                {
+                    ModifyWorldFieldAttribute mwfa = a as ModifyWorldFieldAttribute;
+                    mwfa?.fi.SetValue(w, mwfa.val);
+                }
+            }
         }
 
         private static void WriteWorld(BinaryWriter s, World w)
@@ -50,7 +90,7 @@ namespace TMap
             return result2;
         }
 
-        private static async Task Execute(Options o)
+        private static async Task Execute(Options o, int verbosity = 0)
         {
             //I tried to do this with streams and consistently ran into buffering problems which i'm not smart
             //enough to fix. TODO
@@ -61,7 +101,7 @@ namespace TMap
                 : new BinaryWriter(File.OpenWrite(o.Output));
 
             World w = await ReadWorld(inBytes);
-            ApplyModifications(w, o);
+            ApplyModifications(w, o, verbosity);
             WriteWorld(outStream, w);
         }
 
@@ -70,7 +110,7 @@ namespace TMap
             // really the only reason this is a new function is that I dislike having that many lines indented
             // by one level, just because the library doesnt support getting the Options without a callback (to my
             // knowledge)
-            await Parser.Default.ParseArguments<Options>(args).WithParsedAsync(Execute);
+            await Parser.Default.ParseArguments<Options>(args).WithParsedAsync(o => Execute(o));
             //TODO proper exit codes (probably just copy sysexits.h)
             return 0;
         }
