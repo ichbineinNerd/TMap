@@ -17,49 +17,139 @@ namespace TMap
         {
             public FieldInfo fi;
             public object val;
+
             public ModifyWorldFieldAttribute(string fi, object val)
             {
                 this.fi = typeof(World).GetField(fi);
                 this.val = val;
             }
+
+            public ModifyWorldFieldAttribute(string fi)
+            {
+                this.fi = typeof(World).GetField(fi);
+                this.val = null;
+            }
         }
-    
+
         private class Options
         {
+            //I'm sorry you have to see this, it's spaghetti as hell
+
+            //SeV => ModifyWorldField.Value
+            //Set => Property.GetValue()
+            //Tog => Toggle boolean field
+            //Inc => Increment numeric field
+
+            #region Meta
+
             [Option('f', "file", HelpText = "Path of the world file to load", Required = true)]
             public string Filepath { get; set; }
 
             [Option('o', "out", HelpText = "Where to write the modified world file", Required = false)]
             public string Output { get; set; }
 
+            [Option('v', "version", HelpText = "Sets the verbosity", Required = false)]
+            public int Verbosity { get; set; }
+
+            #endregion
+
+            [Option("increment-revision", HelpText = "Increases the Revision field by 1", Required = false)]
+            public bool RevisionIncrement
+            {
+                get => this.IncrementRevision ?? false;
+                set => this.IncrementRevision = value;
+            }
+
+            [ModifyWorldField("Revision")]
+            public bool? IncrementRevision { get; set; }
+
+            #region Modifying WorldHeader
+
+            [ModifyWorldField("Name")]
+            [Option("name", HelpText = "Changes the display name of the world", Required = false)]
+            public string SetName { get; set; }
+
+            [ModifyWorldField("MoonType")]
+            [Option("moontype", HelpText = "Changes the World's Moon type", Required = false)]
+            public byte? SetMoonType { get; set; }
+
+            #region GameMode
+
             [ModifyWorldField("GameMode", 1)]
             [Option("expert", HelpText = "If given, changes the World to Expert mode", Required = false)]
-            public bool Expert { get; set; }
+            public bool? SeVExpert { get; set; }
 
             [ModifyWorldField("GameMode", 0)]
             [Option("normal", HelpText = "If given, changes the World to Normal mode", Required = false)]
-            public bool Normal { get; set; }
+            public bool? SeVNormal { get; set; }
 
             [ModifyWorldField("GameMode", 2)]
             [Option("master", HelpText = "If given, changes the World to Master mode", Required = false)]
-            public bool Master { get; set; }
+            public bool? SeVMaster { get; set; }
 
             [ModifyWorldField("GameMode", 3)]
             [Option("journey", HelpText = "If given, changes the World to Journey mode", Required = false)]
-            public bool Creative { get; set; }
+            public bool? SeVCreative { get; set; }
+
+            #endregion
+
+            [ModifyWorldField("SpawnTileX")]
+            [Option("spawntilex", HelpText = "Sets the x coordinate of your spawn", Required = false)]
+            public int? SetSpawnTileX { get; set; }
+
+            [ModifyWorldField("SpawnTileY")]
+            [Option("spawntiley", HelpText = "Sets the y coordinate of your spawn", Required = false)]
+            public int? SetSpawnTileY { get; set; }
+
+            #endregion
+        }
+
+        private static object Increment(object o)
+        {
+            return o switch
+            {
+                byte b => b + 1,
+                sbyte b => b + 1,
+                ushort s => s + 1,
+                short s => s + 1,
+                uint i => i + 1,
+                int i => i + 1,
+                ulong l => l + 1,
+                long l => l + 1,
+                _ => null
+            };
         }
 
         private static void ApplyModifications(World w, Options o, int verbosity)
         {
             foreach (PropertyInfo pi in o.GetType().GetProperties())
             {
-                if (pi.PropertyType != typeof(bool) || !(bool) (pi.GetValue(o) ?? false))
+                if (pi.GetValue(o) == null)
                     continue;
+                
                 Attribute[] attributes = Attribute.GetCustomAttributes(pi, typeof(ModifyWorldFieldAttribute));
                 foreach (Attribute a in attributes)
                 {
                     ModifyWorldFieldAttribute mwfa = a as ModifyWorldFieldAttribute;
-                    mwfa?.fi.SetValue(w, mwfa.val);
+
+                    object oldValue = mwfa?.fi.GetValue(w);
+                    
+                    object valueToSetTo = pi.Name.Substring(0, 3) switch
+                    {
+                        "SeV" => mwfa?.val,
+                        "Set" => pi.GetValue(o),
+                        "Tog" => !(bool?) oldValue,
+                        "Inc" => Increment(oldValue),
+                        _ => null
+                    };
+
+                    if (verbosity >= 1)
+                        Console.WriteLine(
+                            $"{mwfa?.fi.Name} set to {valueToSetTo}");
+                    if (verbosity >= 2)
+                        Console.WriteLine($"(was {oldValue})");
+
+                    mwfa?.fi.SetValue(w, valueToSetTo);
                 }
             }
         }
@@ -90,7 +180,7 @@ namespace TMap
             return result2;
         }
 
-        private static async Task Execute(Options o, int verbosity = 0)
+        private static async Task Execute(Options o)
         {
             //I tried to do this with streams and consistently ran into buffering problems which i'm not smart
             //enough to fix. TODO
@@ -101,7 +191,7 @@ namespace TMap
                 : new BinaryWriter(File.OpenWrite(o.Output));
 
             World w = await ReadWorld(inBytes);
-            ApplyModifications(w, o, verbosity);
+            ApplyModifications(w, o, o.Verbosity);
             WriteWorld(outStream, w);
         }
 
