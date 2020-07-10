@@ -1,9 +1,11 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using CommandLine;
 using TMap.Data;
+using TMapExample;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 // ReSharper Complains about the setters not being used in Options, even though they are (from the Attribute)
@@ -107,16 +109,17 @@ namespace TMap
 
         private static async Task<byte[]> ReadStdinToEnd()
         {
-            byte[] result = new byte[7_000_000];
-            int length;
-            await using (Stream stdin = Console.OpenStandardInput())
+            await using Stream stdin = Console.OpenStandardInput();
+            await using MemoryStream ms = new MemoryStream();
+            
+            byte[] buf = new byte[8 * 1024];
+            int read;
+            while ((read = await stdin.ReadAsync(buf, 0, buf.Length)) > 0)
             {
-                length = await stdin.ReadAsync(result, 0, result.Length);
+                ms.Write(buf, 0, read);
             }
-
-            byte[] result2 = new byte[length];
-            Array.Copy(result, 0, result2, 0, length);
-            return result2;
+            
+            return ms.ToArray();
         }
 
         private static async Task Execute(Options o)

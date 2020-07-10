@@ -1,13 +1,14 @@
 using CommandLine;
+using TMap;
 using static TMap.Program.ModifyWorldFieldAttribute.Actions;
 
-namespace TMap.Data
+namespace TMapExample
 {
     public class Options
     {
         #region Meta
 
-        [Option('f', "file", HelpText = "Path of the world file to load", Required = true)]
+        [Option('f', "file", HelpText = "Path of the world file to load", Required = false)]
         public string Filepath { get; set; }
 
         [Option('o', "out", HelpText = "Where to write the modified world file", Required = false)]

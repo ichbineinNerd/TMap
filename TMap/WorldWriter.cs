@@ -47,7 +47,7 @@ namespace TMap
 
             s.Flush();
 
-            return (int) s.BaseStream.Position;
+            return s.BaseStream.CanSeek ? (int) s.BaseStream.Position : 0;
         }
 
         private static int WriteWorldHeader(BinaryWriter s, World w)
@@ -115,7 +115,7 @@ namespace TMap
             for (int i = (int) Goblin; i <= (int) Mechanic; i++)
                 s.Write(w.SavedNpcs[i]);
 
-            for (int i = (int)Goblins; i <= (int)Pirates; i++)
+            for (int i = (int) Goblins; i <= (int) Pirates; i++)
                 s.Write(w.DownedInvasions[i]);
 
             s.Write(w.ShadowOrb);
@@ -204,7 +204,7 @@ namespace TMap
             s.Write(w.SandStormIntendedSeverity);
 
             s.Write(w.SavedNpcs[(int) TavernKeep]);
-            
+
             s.Write(w.MaxDownedDungeonDefenders2 >= 1);
             s.Write(w.MaxDownedDungeonDefenders2 >= 2);
             s.Write(w.MaxDownedDungeonDefenders2 >= 3);
@@ -225,7 +225,7 @@ namespace TMap
             s.Write(w.TreeTopVariations.Length);
             foreach (int treeTopVariation in w.TreeTopVariations)
                 s.Write(treeTopVariation);
-            
+
             s.Write(w.ForceHalloween);
             s.Write(w.ForceChristmas);
 
@@ -240,8 +240,8 @@ namespace TMap
 
             s.Write(w.DownedBosses[(int) EmpressOfLight]);
             s.Write(w.DownedBosses[(int) QueenSlime]);
-            
-            return (int) s.BaseStream.Position;
+
+            return s.BaseStream.CanSeek ? (int) s.BaseStream.Position : 0;
         }
 
         private static int WriteWorldTiles(BinaryWriter s, World w)
@@ -262,7 +262,7 @@ namespace TMap
                             break;
                         j++;
                     }
-                    
+
                     byte flags3 = 0;
                     if (current.Wall > 255)
                         flags3 |= 0x40;
@@ -314,7 +314,7 @@ namespace TMap
                         flags1 |= 0x02;
                     if (flags2 != 0)
                         flags1 |= 0x01;
-                    
+
                     s.Write(flags1);
                     if (flags2 != 0)
                         s.Write(flags2);
@@ -344,17 +344,16 @@ namespace TMap
                         s.Write((ushort) repeat);
                     else if (repeat > 0)
                         s.Write((byte) repeat);
-
                 }
             }
-            
-            return (int) s.BaseStream.Position;
+
+            return s.BaseStream.CanSeek ? (int) s.BaseStream.Position : 0;
         }
 
         private static int WriteChests(BinaryWriter s, World w)
         {
-            s.Write((short)w.Chests.Length);
-            s.Write((short)40);
+            s.Write((short) w.Chests.Length);
+            s.Write((short) 40);
             foreach (Chest c in w.Chests)
             {
                 s.Write(c.X);
@@ -363,7 +362,7 @@ namespace TMap
                 foreach (Item i in c.Contents)
                 {
                     if (i == null)
-                        s.Write((short)0);
+                        s.Write((short) 0);
                     else
                     {
                         s.Write(i.Stack);
@@ -372,13 +371,13 @@ namespace TMap
                     }
                 }
             }
-            
-            return (int) s.BaseStream.Position;
+
+            return s.BaseStream.CanSeek ? (int) s.BaseStream.Position : 0;
         }
 
         private static int WriteSigns(BinaryWriter s, World w)
         {
-            s.Write((short)w.Signs.Length);
+            s.Write((short) w.Signs.Length);
             foreach (Sign current in w.Signs)
             {
                 if (current == null)
@@ -387,8 +386,8 @@ namespace TMap
                 s.Write(current.X);
                 s.Write(current.Y);
             }
-            
-            return (int) s.BaseStream.Position;
+
+            return s.BaseStream.CanSeek ? (int) s.BaseStream.Position : 0;
         }
 
         private static int WriteNpcs(BinaryWriter s, World w)
@@ -411,7 +410,7 @@ namespace TMap
             }
 
             s.Write(false);
-            
+
             foreach (Npc current in w.CurrentNpcs)
             {
                 if (!current.TownNpc)
@@ -424,8 +423,8 @@ namespace TMap
             }
 
             s.Write(false);
-            
-            return (int) s.BaseStream.Position;
+
+            return s.BaseStream.CanSeek ? (int) s.BaseStream.Position : 0;
         }
 
         private static int WriteTileEntities(BinaryWriter s, World w)
@@ -438,7 +437,7 @@ namespace TMap
                 s.Write(current.Id);
                 s.Write(current.X);
                 s.Write(current.Y);
-                
+
                 switch (current.Type) //Ignoring Pylons (7) on purpose here, since they dont store anything extra
                 {
                     case 0: // Training Dummy
@@ -447,7 +446,7 @@ namespace TMap
                     case 1: // Item Frame
                     case 4: // Weapon Rack
                     case 6: // Food Platter
-                        s.Write((short)current.Items[0].Id);
+                        s.Write((short) current.Items[0].Id);
                         s.Write(current.Items[0].Prefix);
                         s.Write(current.Items[0].Stack);
                         break;
@@ -460,7 +459,7 @@ namespace TMap
                         for (int i = 0; i < 8; i++)
                             if (current.Items[i] != null)
                                 itemSlots |= (byte) (1 << i);
-                        
+
                         byte dyeSlots = 0;
                         for (int i = 0; i < 8; i++)
                             if (current.Items[8 + i] != null)
@@ -473,7 +472,7 @@ namespace TMap
                         {
                             if (current.Items[i] == null)
                                 continue;
-                            s.Write((short)current.Items[i].Id);
+                            s.Write((short) current.Items[i].Id);
                             s.Write(current.Items[i].Prefix);
                             s.Write(current.Items[i].Stack);
                         }
@@ -491,15 +490,16 @@ namespace TMap
                         {
                             if (current.Items[i] == null)
                                 continue;
-                            s.Write((short)current.Items[i].Id);
+                            s.Write((short) current.Items[i].Id);
                             s.Write(current.Items[i].Prefix);
                             s.Write(current.Items[i].Stack);
                         }
+
                         break;
                 }
             }
-            
-            return (int) s.BaseStream.Position;
+
+            return s.BaseStream.CanSeek ? (int) s.BaseStream.Position : 0;
         }
 
         private static int WritePressurePlates(BinaryWriter s, World w)
@@ -512,7 +512,7 @@ namespace TMap
                 s.Write(w.PressurePlatesY[i]);
             }
 
-            return (int) s.BaseStream.Position;
+            return s.BaseStream.CanSeek ? (int) s.BaseStream.Position : 0;
         }
 
         private static int WriteTownManager(BinaryWriter s, World w)
@@ -526,7 +526,7 @@ namespace TMap
                 s.Write(roomLocation.yPos);
             }
 
-            return (int) s.BaseStream.Position;
+            return s.BaseStream.CanSeek ? (int) s.BaseStream.Position : 0;
         }
 
         private static int WriteBestiary(BinaryWriter s, World w)
@@ -545,8 +545,8 @@ namespace TMap
             s.Write(w.ChattedWithPlayer.Count);
             foreach (string s2 in w.ChattedWithPlayer)
                 s.Write(s2);
-            
-            return (int) s.BaseStream.Position;
+
+            return s.BaseStream.CanSeek ? (int) s.BaseStream.Position : 0;
         }
 
         private static int WriteCreativePowers(BinaryWriter s, World w)
@@ -572,16 +572,16 @@ namespace TMap
                 s.Write(false);
             }
 
-            return (int) s.BaseStream.Position;
+            return s.BaseStream.CanSeek ? (int) s.BaseStream.Position : 0;
         }
-        
+
         private static void WriteFooter(BinaryWriter s, World w)
         {
             s.Write(true);
             s.Write(w.Name);
             s.Write(w.WorldId);
         }
-        
+
         public static void WriteWorld(BinaryWriter s, World w)
         {
             int fileFormatHeaderPos = WriteFileFormatHeader(s, w);
@@ -597,7 +597,8 @@ namespace TMap
             int creativePowersPos = WriteCreativePowers(s, w);
             WriteFooter(s, w);
 
-            
+            if (!s.BaseStream.CanSeek)
+                return;
             s.BaseStream.Position = 26L;
             s.Write(fileFormatHeaderPos);
             s.Write(worldHeaderPos);
