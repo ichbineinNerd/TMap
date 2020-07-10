@@ -1,7 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>netcoreapp3.1</TargetFramework>
+	<TargetFramework>netcoreapp3.1</TargetFramework>
+	<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+	<Title>TerraMap</Title>
+	<PackageId>TMap</PackageId>
+	<Authors>ichbineinNerd</Authors>
+	<Description>Parses and writes Terraria world files.</Description>
+	<PackageTags>Terraria;Game;Parser;Dump;World;Map;Parse;Parsing</PackageTags>
+	<RepositoryUrl>https://github.com/ichbineinNerd/TMap</RepositoryUrl>
+	<RepositoryBranch>master</RepositoryBranch>
+	<Version>1.4.0.5.1</Version>
+	<PackageLicenseExpression>Unlicense</PackageLicenseExpression>
     </PropertyGroup>
 
 </Project>

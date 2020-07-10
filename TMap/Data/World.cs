@@ -52,7 +52,6 @@ namespace TMap.Data
 
         public bool Crimson;
 
-        //Boss1, Boss2, Boss3, QueenBee, Mech1, Mech2, Mech3, AnyMech, PlantBoss, GolemBoss, SlimeKing
         public enum BossIndexes
         {
             EyeOfCthulhu,
