@@ -13,143 +13,82 @@ namespace TMap
     static class Program
     {
         [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
-        private class ModifyWorldFieldAttribute : Attribute
+        internal class ModifyWorldFieldAttribute : Attribute
         {
+            public enum Actions
+            {
+                Increment,
+                SetToValue,
+                SetToPropertyValue,
+                Toggle
+            }
+
             public FieldInfo fi;
             public object val;
+            public Actions action;
 
-            public ModifyWorldFieldAttribute(string fi, object val)
+            public ModifyWorldFieldAttribute(string fi, object val, Actions action)
             {
                 this.fi = typeof(World).GetField(fi);
                 this.val = val;
+                this.action = action;
             }
 
             public ModifyWorldFieldAttribute(string fi)
             {
                 this.fi = typeof(World).GetField(fi);
                 this.val = null;
+                this.action = Actions.SetToPropertyValue;
             }
         }
 
-        private class Options
+        private static object Increment(object o) => o switch
         {
-            //I'm sorry you have to see this, it's spaghetti as hell
-
-            //SeV => ModifyWorldField.Value
-            //Set => Property.GetValue()
-            //Tog => Toggle boolean field
-            //Inc => Increment numeric field
-
-            #region Meta
-
-            [Option('f', "file", HelpText = "Path of the world file to load", Required = true)]
-            public string Filepath { get; set; }
-
-            [Option('o', "out", HelpText = "Where to write the modified world file", Required = false)]
-            public string Output { get; set; }
-
-            [Option('v', "version", HelpText = "Sets the verbosity", Required = false)]
-            public int Verbosity { get; set; }
-
-            #endregion
-
-            [Option("increment-revision", HelpText = "Increases the Revision field by 1", Required = false)]
-            public bool RevisionIncrement
-            {
-                get => this.IncrementRevision ?? false;
-                set => this.IncrementRevision = value;
-            }
-
-            [ModifyWorldField("Revision")]
-            public bool? IncrementRevision { get; set; }
-
-            #region Modifying WorldHeader
-
-            [ModifyWorldField("Name")]
-            [Option("name", HelpText = "Changes the display name of the world", Required = false)]
-            public string SetName { get; set; }
-
-            [ModifyWorldField("MoonType")]
-            [Option("moontype", HelpText = "Changes the World's Moon type", Required = false)]
-            public byte? SetMoonType { get; set; }
-
-            #region GameMode
-
-            [ModifyWorldField("GameMode", 1)]
-            [Option("expert", HelpText = "If given, changes the World to Expert mode", Required = false)]
-            public bool? SeVExpert { get; set; }
-
-            [ModifyWorldField("GameMode", 0)]
-            [Option("normal", HelpText = "If given, changes the World to Normal mode", Required = false)]
-            public bool? SeVNormal { get; set; }
-
-            [ModifyWorldField("GameMode", 2)]
-            [Option("master", HelpText = "If given, changes the World to Master mode", Required = false)]
-            public bool? SeVMaster { get; set; }
-
-            [ModifyWorldField("GameMode", 3)]
-            [Option("journey", HelpText = "If given, changes the World to Journey mode", Required = false)]
-            public bool? SeVCreative { get; set; }
-
-            #endregion
-
-            [ModifyWorldField("SpawnTileX")]
-            [Option("spawntilex", HelpText = "Sets the x coordinate of your spawn", Required = false)]
-            public int? SetSpawnTileX { get; set; }
-
-            [ModifyWorldField("SpawnTileY")]
-            [Option("spawntiley", HelpText = "Sets the y coordinate of your spawn", Required = false)]
-            public int? SetSpawnTileY { get; set; }
-
-            #endregion
-        }
-
-        private static object Increment(object o)
-        {
-            return o switch
-            {
-                byte b => b + 1,
-                sbyte b => b + 1,
-                ushort s => s + 1,
-                short s => s + 1,
-                uint i => i + 1,
-                int i => i + 1,
-                ulong l => l + 1,
-                long l => l + 1,
-                _ => null
-            };
-        }
+            byte b => b + 1,
+            sbyte b => b + 1,
+            ushort s => s + 1,
+            short s => s + 1,
+            uint i => i + 1,
+            int i => i + 1,
+            ulong l => l + 1,
+            long l => l + 1,
+            _ => null
+        };
 
         private static void ApplyModifications(World w, Options o, int verbosity)
         {
             foreach (PropertyInfo pi in o.GetType().GetProperties())
             {
-                if (pi.GetValue(o) == null)
-                    continue;
-                
                 Attribute[] attributes = Attribute.GetCustomAttributes(pi, typeof(ModifyWorldFieldAttribute));
                 foreach (Attribute a in attributes)
                 {
                     ModifyWorldFieldAttribute mwfa = a as ModifyWorldFieldAttribute;
 
                     object oldValue = mwfa?.fi.GetValue(w);
-                    
-                    object valueToSetTo = pi.Name.Substring(0, 3) switch
+
+                    object valueToSetTo = mwfa?.action switch
                     {
-                        "SeV" => mwfa?.val,
-                        "Set" => pi.GetValue(o),
-                        "Tog" => !(bool?) oldValue,
-                        "Inc" => Increment(oldValue),
+                        ModifyWorldFieldAttribute.Actions.SetToValue => mwfa.val,
+                        ModifyWorldFieldAttribute.Actions.SetToPropertyValue => pi.GetValue(o),
+                        ModifyWorldFieldAttribute.Actions.Increment => Increment(mwfa.fi.GetValue(w)),
+                        // ReSharper disable once PossibleNullReferenceException
+                        ModifyWorldFieldAttribute.Actions.Toggle => !(bool)mwfa.fi.GetValue(w),
                         _ => null
                     };
 
+                    if (mwfa?.action == ModifyWorldFieldAttribute.Actions.SetToPropertyValue && valueToSetTo == null)
+                        continue;
+                    
+                    if (mwfa?.action != ModifyWorldFieldAttribute.Actions.SetToPropertyValue && !(bool)pi.GetValue(o))
+                        continue;
+                    
                     if (verbosity >= 1)
                         Console.WriteLine(
-                            $"{mwfa?.fi.Name} set to {valueToSetTo}");
+                            $"{mwfa.fi.Name} set to {valueToSetTo}");
                     if (verbosity >= 2)
                         Console.WriteLine($"(was {oldValue})");
 
-                    mwfa?.fi.SetValue(w, valueToSetTo);
+                    mwfa.fi.SetValue(w, valueToSetTo);
                 }
             }
         }
@@ -200,7 +139,7 @@ namespace TMap
             // really the only reason this is a new function is that I dislike having that many lines indented
             // by one level, just because the library doesnt support getting the Options without a callback (to my
             // knowledge)
-            await Parser.Default.ParseArguments<Options>(args).WithParsedAsync(o => Execute(o));
+            await Parser.Default.ParseArguments<Options>(args).WithParsedAsync(Execute);
             //TODO proper exit codes (probably just copy sysexits.h)
             return 0;
         }
