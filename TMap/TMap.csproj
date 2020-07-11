@@ -10,7 +10,7 @@
 	<PackageTags>Terraria;Game;Parser;Dump;World;Map;Parse;Parsing</PackageTags>
 	<RepositoryUrl>https://github.com/ichbineinNerd/TMap</RepositoryUrl>
 	<RepositoryBranch>master</RepositoryBranch>
-	<Version>1.4.0.5.1</Version>
+	<Version>1.4.0.5</Version>
 	<PackageLicenseExpression>Unlicense</PackageLicenseExpression>
     </PropertyGroup>
 
