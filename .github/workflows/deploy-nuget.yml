@@ -18,7 +18,7 @@ jobs:
       - name: Build solution and generate NuGet package
         run: |  
           cd TMap
-          dotnet pack -c Release
+          dotnet build -c Release
       
       - name: Publish NuGet
         uses: brandedoutcast/publish-nuget@v2.5.3
