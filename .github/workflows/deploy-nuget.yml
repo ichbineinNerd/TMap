@@ -21,9 +21,6 @@ jobs:
           dotnet build -c Release
       
       - name: Publish NuGet
-        uses: brandedoutcast/publish-nuget@v2.5.3
-        with:
-          # Filepath of the project to be packaged, relative to root of repository
-          PROJECT_FILE_PATH: TMap/TMap.csproj
-          # API key to authenticate with NuGet server
-          NUGET_KEY: ${{ secrets.NUGET_DEPLOY_KEY }}
+        run: |
+          cd TMap
+          dotnet nuget push bin/Release/TMap.*.nupkg -k {{ secrets.NUGET_DEPLOY_KEY }} -s https://api.nuget.org/v3/index.json
