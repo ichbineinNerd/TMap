@@ -16,17 +16,19 @@ jobs:
         uses: actions/setup-dotnet@v1
 
       - name: Build solution and generate NuGet package
+        id: build
         run: |
-          dotnet build -c Release && echo "::set-env name=built::y"
+          dotnet build -c Release
+          echo ::set-output name=exit_code::$?
       
       - name: Publish NuGet
-        if: ${{ env.built == 'y' }}
+        if: ${{ steps.build.outputs.exit_code == 0 }}
         run: |
           cd TMap
           dotnet nuget push bin/Release/TMap.*.nupkg -k ${{ secrets.NUGET_DEPLOY_KEY }} -s https://api.nuget.org/v3/index.json
       
       - name: Publish GitHub
-        if: ${{ env.built == 'y' }}
+        if: ${{ steps.build.outputs.exit_code == 0 }}
         env:
           token: ${{ secrets.GITHUB_TOKEN }}
         run: |
