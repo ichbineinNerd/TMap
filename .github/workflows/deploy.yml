@@ -1,0 +1,35 @@
+name: Deployment
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v1
+
+      - name: Setup .NET Core @ Latest
+        uses: actions/setup-dotnet@v1
+
+      - name: Build solution and generate NuGet package
+        run: |
+          dotnet build -c Release
+      
+      - name: Publish NuGet
+        run: |
+          cd TMap
+          dotnet nuget push bin/Release/TMap.*.nupkg -k ${{ secrets.NUGET_DEPLOY_KEY }} -s https://api.nuget.org/v3/index.json
+      
+      - name: Publish GitHub
+        env:
+          token: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd TMap/bin/Release
+          version="$(ls | grep nupkg | sed -e 's/TMap\.\([0-9]\(\.[0-9]\)\+\)\.nupkg/\1/')"
+          releaseid="$(curl --header "Authorization: token $token" --data '{"tag_name": "'"$version"'","name":"v'"$version"'"}' --header Content-Type:application/json --request POST "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")"
+          curl --header "Authorization: token $token" --header Content-Type:application/json --data-binary "@netcoreapp3.1/TMap.dll" --request POST "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$releaseid/assets?name=TMap.dll"
+          curl --header "Authorization: token $token" --header Content-Type:application/json --data-binary "@TMap.$version.nupkg" --request POST "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$releaseid/assets?name=TMap.nupkg"
